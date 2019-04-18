@@ -21,9 +21,9 @@ func main() {
 	proxy := hessian.NewProxy(hessian.V1, addr, 5*time.Second)
 	proxy.SetTypeMapping("lab.ggw.shs.service.User", reflect.TypeOf(&User{}))
 
-	log.Println(proxy.Invoke("str"))
+	// log.Println(proxy.Invoke("str"))
 	// log.Println(proxy.Invoke("strI", "abc"))
-	// log.Println(proxy.Invoke("strI2", "abc", "bcd"))
+	// log.Println(proxy.Invoke("strI2", "ggwhite", "this is message"))
 	// log.Println(proxy.Invoke("bool"))
 	// log.Println(proxy.Invoke("boolI", true))
 	// log.Println(proxy.Invoke("boolI", false))
@@ -59,10 +59,10 @@ func main() {
 	// 	Name:  "ggwhite",
 	// 	Email: "ggw.chang@gmail.com",
 	// }))
-	// log.Println(proxy.Invoke("objI", &User{
-	// 	Name:  "ggwhite",
-	// 	Email: "ggw.chang@gmail.com",
-	// }))
+	log.Println(proxy.Invoke("objI", &User{
+		Name:  "ggwhite",
+		Email: "ggw.chang@gmail.com",
+	}))
 	// log.Println(proxy.Invoke("objI", User{
 	// 	Name:  "ggwhite",
 	// 	Email: "ggw.chang@gmail.com",
@@ -71,8 +71,8 @@ func main() {
 	// 		Email: "ggw.chang@gmail.com",
 	// 	},
 	// }))
-	// ans, err := proxy.Invoke("obj")
-	// log.Println(ans[0], err)
+	ans, err := proxy.Invoke("obj")
+	log.Println(ans[0], err)
 	// log.Println(proxy.Invoke("map"))
 	// log.Println(proxy.Invoke("mapI", map[string]string{
 	// 	"KeyA": "ValueA",
