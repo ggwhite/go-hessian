@@ -8,6 +8,11 @@
 
 Golang Hessian can use hessian proxy to connect to hessian service.
 
+> Reference: 
+> * Hessian Official Site: http://hessian.caucho.com
+> * Hessian Java source: https://github.com/ebourg/hessian
+> * Project test server: [simple-hessian-server](https://github.com/ggwhite/simple-hessian-server)
+
 # How to use ?
 
 ### No argument method call
