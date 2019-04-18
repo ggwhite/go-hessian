@@ -140,6 +140,14 @@ func (o *OutputV1) WriteObject(arg interface{}) error {
 		if err := o.WritePtr(arg); err != nil {
 			return err
 		}
+	case reflect.Array:
+		if err := o.WriteArray(arg); err != nil {
+			return err
+		}
+	case reflect.Slice:
+		if err := o.WriteArray(arg); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -311,6 +319,92 @@ func (o *OutputV1) WriteMap(m interface{}) error {
 			return err
 		}
 		if err := o.WriteObject(v.MapIndex(key).Interface()); err != nil {
+			return err
+		}
+	}
+
+	if err := o.buf.WriteByte('z'); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// WriteArray Write an map value to the stream. The map will be written with the following syntax:
+//
+// Vt b16 b8 <array-type> l b32 b24 b16 b8 <object> ... ... z
+func (o *OutputV1) WriteArray(arr interface{}) error {
+	// check input
+	t := reflect.TypeOf(arr)
+	if t.Kind() != reflect.Array && t.Kind() != reflect.Slice {
+		return fmt.Errorf("WriteArray input is not a array or slice")
+	}
+
+	// write begin
+	if err := o.buf.WriteByte('V'); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte('t'); err != nil {
+		return err
+	}
+
+	v := reflect.ValueOf(arr)
+
+	var arrtype string
+	// define array type
+	switch t.Elem().Kind() {
+	default:
+		arrtype = "[object"
+	case reflect.Interface:
+		arrtype = "[object"
+	case reflect.String:
+		arrtype = "[string"
+	case reflect.Int:
+		arrtype = "[int"
+	case reflect.Int8:
+		arrtype = "[int"
+	case reflect.Int16:
+		arrtype = "[int"
+	case reflect.Int32:
+		arrtype = "[int"
+	case reflect.Int64:
+		arrtype = "[long"
+	case reflect.Float32:
+		arrtype = "[double"
+	case reflect.Float64:
+		arrtype = "[double"
+	}
+
+	typelen := len(arrtype)
+
+	if err := o.buf.WriteByte(byte(typelen >> 8)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(typelen)); err != nil {
+		return err
+	}
+	if _, err := o.buf.WriteString(arrtype); err != nil {
+		return err
+	}
+
+	if err := o.buf.WriteByte('l'); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(v.Len() >> 24)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(v.Len() >> 16)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(v.Len() >> 8)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(v.Len())); err != nil {
+		return err
+	}
+
+	for i := 0; i < v.Len(); i++ {
+		if err := o.WriteObject(v.Index(i).Interface()); err != nil {
 			return err
 		}
 	}

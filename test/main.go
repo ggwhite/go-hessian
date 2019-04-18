@@ -21,7 +21,9 @@ func main() {
 	proxy := hessian.NewProxy(hessian.V1, addr, 5*time.Second)
 	proxy.SetTypeMapping("lab.ggw.shs.service.User", reflect.TypeOf(&User{}))
 
-	// log.Println(proxy.Invoke("hello"))
+	log.Println(proxy.Invoke("str"))
+	// log.Println(proxy.Invoke("strI", "abc"))
+	// log.Println(proxy.Invoke("strI2", "abc", "bcd"))
 	// log.Println(proxy.Invoke("bool"))
 	// log.Println(proxy.Invoke("boolI", true))
 	// log.Println(proxy.Invoke("boolI", false))
@@ -71,7 +73,7 @@ func main() {
 	// }))
 	// ans, err := proxy.Invoke("obj")
 	// log.Println(ans[0], err)
-	log.Println(proxy.Invoke("map"))
+	// log.Println(proxy.Invoke("map"))
 	// log.Println(proxy.Invoke("mapI", map[string]string{
 	// 	"KeyA": "ValueA",
 	// 	"KeyB": "ValueB",
@@ -88,4 +90,8 @@ func main() {
 	// 	true:  1233.129,
 	// 	false: 321.12,
 	// }))
+	// log.Println(proxy.Invoke("array"))
+	// log.Println(proxy.Invoke("arrayI", []interface{}{123, "abc", "qq"}))
+	// log.Println(proxy.Invoke("strarrayI", []string{"123", "abc", "qq"}))
+	// log.Println(proxy.Invoke("intarrayI", []int{123, 456, -123}))
 }

@@ -1,6 +1,7 @@
 package hessian
 
 import (
+	"crypto/tls"
 	"log"
 	"net/http"
 	"reflect"
@@ -43,7 +44,6 @@ func (c *Proxy) Invoke(m string, args ...interface{}) ([]interface{}, error) {
 	req.Header.Set("Accept-Encoding", "deflate")
 
 	resp, err := c.client.Do(req)
-	log.Println(resp, err)
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +85,11 @@ func NewProxy(v version, url string, timeout time.Duration) *Proxy {
 			url: url,
 			client: &http.Client{
 				Timeout: timeout,
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true,
+					},
+				},
 			},
 			o: NewOutputV1(),
 			i: NewInputV1(),

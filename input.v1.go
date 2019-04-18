@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"reflect"
 )
@@ -17,11 +16,11 @@ type InputV1 struct {
 	typeMap map[string]reflect.Type
 }
 
-func (i *InputV1) read(p []byte, begin int) ([]interface{}, int, error) {
-
+// ReadAt Read object from given bytes and begin index.
+func (i *InputV1) ReadAt(p []byte, begin int) ([]interface{}, int, error) {
 	var ans []interface{}
-
 	var j = begin
+	var err error
 
 	for ; j < len(p); j++ {
 		ch := p[j]
@@ -30,13 +29,12 @@ func (i *InputV1) read(p []byte, begin int) ([]interface{}, int, error) {
 		case 'c':
 		case 'r':
 		case 'f':
-			params, n, err := i.read(p, j+1)
-			log.Println(params)
-			j = n
+			var args []interface{}
+			args, j, err = i.ReadAt(p, j+1)
 			if err != nil {
 				return nil, j, err
 			}
-			return nil, j, fmt.Errorf("Call Service Error, Exception: %s, Message: %s", params[1].(string), params[3].(string))
+			return nil, j, fmt.Errorf("Call Service Error, Exception: %s, Message: %s", args[1].(string), args[3].(string))
 		case 'z':
 			break
 		case 'T':
@@ -46,114 +44,74 @@ func (i *InputV1) read(p []byte, begin int) ([]interface{}, int, error) {
 		case 'N':
 			ans = append(ans, nil)
 		case 'S':
-			// S b16 b8
-			val1 := int(p[j+1])
-			val2 := int(p[j+2])
-			j += 2
-			sl := val1<<8 + val2
-			byt := make([]byte, sl)
-			for k := 0; k < sl; k++ {
-				j++
-				byt[k] = p[j]
+			// S b16 b8 string-value
+			var val string
+			val, j, err = i.ReadStringAt(p, j+1)
+			if err != nil {
+				return nil, j, err
 			}
-			ans = append(ans, string(byt))
+			ans = append(ans, val)
 		case 'I':
 			// I b32 b24 b16 b8
-			val1 := int32(p[j+1])
-			val2 := int32(p[j+2])
-			val3 := int32(p[j+3])
-			val4 := int32(p[j+4])
-			val := val1<<24 + val2<<16 + val3<<8 + val4
+			var val int32
+			val, j, err = i.ReadInt32At(p, j+1)
+			if err != nil {
+				return nil, j, err
+			}
 			ans = append(ans, val)
-			j += 4
 		case 'L':
 			// L b64 b56 b48 b40 b32 b24 b16 b8
-			val1 := int64(p[j+1])
-			val2 := int64(p[j+2])
-			val3 := int64(p[j+3])
-			val4 := int64(p[j+4])
-			val5 := int64(p[j+5])
-			val6 := int64(p[j+6])
-			val7 := int64(p[j+7])
-			val8 := int64(p[j+8])
-			val := val1<<56 + val2<<48 + val3<<40 + val4<<32 + val5<<24 + val6<<16 + val7<<8 + val8
+			var val int64
+			val, j, err = i.ReadInt64At(p, j+1)
+			if err != nil {
+				return nil, j, err
+			}
 			ans = append(ans, val)
-			j += 8
 		case 'D':
 			// D b64 b56 b48 b40 b32 b24 b16 b8
-			val1 := uint64(p[j+1])
-			val2 := uint64(p[j+2])
-			val3 := uint64(p[j+3])
-			val4 := uint64(p[j+4])
-			val5 := uint64(p[j+5])
-			val6 := uint64(p[j+6])
-			val7 := uint64(p[j+7])
-			val8 := uint64(p[j+8])
-			val := val1<<56 + val2<<48 + val3<<40 + val4<<32 + val5<<24 + val6<<16 + val7<<8 + val8
-			ans = append(ans, math.Float64frombits(val))
-			j += 8
+			var val float64
+			val, j, err = i.ReadFloat64At(p, j+1)
+			if err != nil {
+				return nil, j, err
+			}
+			ans = append(ans, val)
 		case 'M':
 			if p[j+1] == 't' {
 				j++
-				val1 := int(p[j+1])
-				val2 := int(p[j+2])
-				j += 2
-				sl := val1<<8 + val2
-				byt := make([]byte, sl)
-				for k := 0; k < sl; k++ {
-					j++
-					byt[k] = p[j]
+				var pkg string
+				var m = make(map[interface{}]interface{})
+				pkg, j, err = i.ReadStringAt(p, j+1)
+				if err != nil {
+					return nil, j, err
 				}
-				pkg := string(byt)
+
+				// parse 'Mt' arguments
+				m, j, err = i.ReadMapAt(p, j+1)
+				if err != nil {
+					return nil, j, err
+				}
+
 				if len(pkg) > 0 {
-					m := make(map[string]interface{})
-					params, n, err := i.read(p, j+1)
-					j = n
+					obj, err := i.BuildObject(pkg, m)
 					if err != nil {
-						return nil, j, err
+						ans = append(ans, nil)
 					}
-
-					for k := 0; k < len(params); k++ {
-						m[params[k].(string)] = params[k+1]
-						k++
-					}
-
-					if subt, exist := i.typeMap[pkg]; exist {
-						var t reflect.Type
-						if subt.Kind() == reflect.Ptr {
-							t = subt.Elem()
-						} else {
-							t = subt
-						}
-						subv := reflect.New(t)
-
-						for k, l := 0, t.NumField(); k < l; k++ {
-							if val, exist := m[t.Field(k).Tag.Get(tagName)]; exist {
-								if val == nil {
-									continue
-								}
-								subv.Elem().Field(k).Set(reflect.ValueOf(val))
-							}
-						}
-						if subt.Kind() == reflect.Ptr {
-							ans = append(ans, subv.Interface())
-							continue
-						}
-						ans = append(ans, subv.Elem().Interface())
-					}
+					ans = append(ans, obj)
 				} else {
-					m := make(map[interface{}]interface{})
-					params, n, err := i.read(p, j+1)
-					j = n
-					if err != nil {
-						return nil, j, err
-					}
-					for k := 0; k < len(params); k++ {
-						m[params[k]] = params[k+1]
-						k++
-					}
 					ans = append(ans, m)
 				}
+			}
+		case 'V':
+			if p[j+1] == 't' {
+				j++
+				var arr []interface{}
+
+				arr, j, err = i.ReadArrayAt(p, j+1)
+				if err != nil {
+					return nil, j, err
+				}
+
+				ans = append(ans, arr)
 			}
 		}
 	}
@@ -161,7 +119,175 @@ func (i *InputV1) read(p []byte, begin int) ([]interface{}, int, error) {
 	return ans, j, nil
 }
 
+// ReadStringAt Read string from given bytes and begin index.
 //
+// After 'S' chart, find b16 b8 <string-value>
+func (i *InputV1) ReadStringAt(p []byte, begin int) (string, int, error) {
+	var ans []byte
+
+	var idx = begin
+
+	// find string length
+	// b16 b8 <string-value>
+	l := int(p[idx])<<8 + int(p[idx+1])
+	idx++
+
+	ans = make([]byte, l)
+
+	for k := 0; k < l; k++ {
+		idx++
+		ans[k] = p[idx]
+	}
+
+	return string(ans), idx, nil
+}
+
+// ReadInt32At Read string from given bytes and begin index.
+//
+// After 'I' chart, find b32 b24 b16 b8
+func (i *InputV1) ReadInt32At(p []byte, begin int) (int32, int, error) {
+	var ans int32
+	var idx = begin
+
+	// b32 b24 b16 b8
+	ans = int32(p[idx])<<24 + int32(p[idx+1])<<16 + int32(p[idx+2])<<8 + int32(p[idx+3])
+
+	return ans, idx + 3, nil
+}
+
+// ReadInt64At Read string from given bytes and begin index.
+//
+// After 'L' chart, find b64 b56 b48 b40 b32 b24 b16 b8
+func (i *InputV1) ReadInt64At(p []byte, begin int) (int64, int, error) {
+	var ans int64
+	var idx = begin
+
+	// b64 b56 b48 b40 b32 b24 b16 b8
+	ans = int64(p[idx])<<56 + int64(p[idx+1])<<48 + int64(p[idx+2])<<40 + int64(p[idx+3])<<32 + int64(p[idx+4])<<24 + int64(p[idx+5])<<16 + int64(p[idx+6])<<8 + int64(p[idx+7])
+
+	return ans, idx + 7, nil
+}
+
+// ReadFloat64At Read string from given bytes and begin index.
+//
+// After 'D' chart, find b64 b56 b48 b40 b32 b24 b16 b8
+func (i *InputV1) ReadFloat64At(p []byte, begin int) (float64, int, error) {
+	var ans uint64
+	var idx = begin
+
+	// b64 b56 b48 b40 b32 b24 b16 b8
+	ans = uint64(p[idx])<<56 + uint64(p[idx+1])<<48 + uint64(p[idx+2])<<40 + uint64(p[idx+3])<<32 + uint64(p[idx+4])<<24 + uint64(p[idx+5])<<16 + uint64(p[idx+6])<<8 + uint64(p[idx+7])
+
+	return math.Float64frombits(ans), idx + 7, nil
+}
+
+// ReadMapAt Read string from given bytes and begin index.
+//
+// After 'Mt' chart, find <key> + <value> ...
+func (i *InputV1) ReadMapAt(p []byte, begin int) (map[interface{}]interface{}, int, error) {
+	var ans = make(map[interface{}]interface{})
+	var params []interface{}
+	var idx = begin
+	var err error
+
+	params, idx, err = i.ReadAt(p, idx)
+	if err != nil {
+		return nil, idx, err
+	}
+
+	// put params to map
+	for j := 0; j < len(params); j++ {
+		ans[params[j]] = params[j+1]
+		j++
+	}
+
+	return ans, idx, nil
+}
+
+// ReadArrayAt Read string from given bytes and begin index.
+//
+// After 'Vt <type> <size>' chart, find <value> + <value> ...
+func (i *InputV1) ReadArrayAt(p []byte, begin int) ([]interface{}, int, error) {
+	// find array type
+	var arrlen int32
+	var arr, args []interface{}
+	var idx = begin
+	var err error
+
+	_, idx, err = i.ReadStringAt(p, idx)
+	if err != nil {
+		return nil, idx, err
+	}
+
+	// find array length
+	if p[idx+1] != 'l' {
+		return nil, idx, fmt.Errorf("parse unknowen array length")
+	}
+	idx++
+
+	arrlen, idx, err = i.ReadInt32At(p, idx+1)
+	if err != nil {
+		return nil, idx, err
+	}
+
+	arr = make([]interface{}, int(arrlen))
+	// parse array val
+	args, idx, err = i.ReadAt(p, idx+1)
+	if err != nil {
+		return nil, idx, err
+	}
+
+	if len(args) != len(arr) {
+		return nil, idx, fmt.Errorf("array length and arguments length not equal %d != %d", len(arr), len(args))
+	}
+
+	for k := 0; k < len(arr); k++ {
+		arr[k] = args[k]
+	}
+
+	return arr, idx, nil
+}
+
+// BuildObject build a struct or ptr(of struct) from given package and data
+func (i *InputV1) BuildObject(pkg string, data map[interface{}]interface{}) (interface{}, error) {
+	var tt, t reflect.Type
+	var exist bool
+
+	// find pkg from type map
+	if tt, exist = i.typeMap[pkg]; !exist {
+		return nil, fmt.Errorf("can not find package %s in type map", pkg)
+	}
+
+	// check
+	if tt.Kind() == reflect.Ptr {
+		t = tt.Elem()
+	} else {
+		t = tt
+	}
+
+	// create new object (ptr)
+	tv := reflect.New(t)
+
+	// write value to fields
+	for j, l := 0, t.NumField(); j < l; j++ {
+		if val, exist := data[t.Field(j).Tag.Get(tagName)]; exist {
+			if val == nil {
+				continue
+			}
+			tv.Elem().Field(j).Set(reflect.ValueOf(val))
+		}
+	}
+
+	// return ptr if mapping type is ptr
+	if tt.Kind() == reflect.Ptr {
+		return tv.Interface(), nil
+	}
+
+	// return struct if mapping type is struct
+	return tv.Elem().Interface(), nil
+}
+
+// Read parse input (io.Reader) to return value
 func (i *InputV1) Read() ([]interface{}, error) {
 	if i.r == nil {
 		return nil, fmt.Errorf("io.Reader is not set yet")
@@ -172,9 +298,7 @@ func (i *InputV1) Read() ([]interface{}, error) {
 		return nil, err
 	}
 
-	log.Println(p)
-
-	ans, _, err := i.read(p, 0)
+	ans, _, err := i.ReadAt(p, 0)
 	return ans, err
 }
 
