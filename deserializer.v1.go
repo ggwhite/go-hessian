@@ -35,7 +35,7 @@ func (i *DeserializerV1) ReadAt(p []byte, begin int) ([]interface{}, int, error)
 			}
 			return nil, j, fmt.Errorf("Call Service Error, Exception: %s, Message: %s", args[1].(string), args[3].(string))
 		case 'z':
-			break
+			return ans, j, nil
 		case 'T':
 			ans = append(ans, true)
 		case 'F':
