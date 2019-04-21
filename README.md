@@ -5,6 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/ggwhite/go-hessian)](https://goreportcard.com/report/github.com/ggwhite/go-hessian)
 [![License](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ggwhite/go-hessian/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/github.com/ggwhite/go-hessian?status.svg)](https://godoc.org/github.com/ggwhite/go-hessian)
+[![Release](https://img.shields.io/github/release/ggwhite/go-hessian.svg?style=flat-square)](https://github.com/ggwhite/go-hessian/releases/latest)
 
 Golang Hessian can use hessian proxy to connect to hessian service.
 

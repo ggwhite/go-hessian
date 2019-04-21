@@ -447,6 +447,9 @@ func (o *SerializerV1) WriteStruct(s interface{}) error {
 	o.printString(pkg)
 
 	for k, v := range m {
+		if len(k) == 0 {
+			continue
+		}
 		if err := o.WriteObject(k); err != nil {
 			return err
 		}
@@ -465,47 +468,12 @@ func (o *SerializerV1) WriteStruct(s interface{}) error {
 func (o *SerializerV1) WritePtr(p interface{}) error {
 	t := reflect.TypeOf(p)
 	if t.Kind() != reflect.Ptr {
-		return fmt.Errorf("WritePtr input is not a pointer")
+		return fmt.Errorf("WritePtr input is not a struct pointer")
 	}
-	if err := o.buf.WriteByte('M'); err != nil {
-		return err
+	if t.Elem().Kind() != reflect.Struct {
+		return fmt.Errorf("WritePtr input is not a struct pointer")
 	}
-	if err := o.buf.WriteByte('t'); err != nil {
-		return err
-	}
-
-	v := reflect.ValueOf(p).Elem()
-	t = v.Type()
-
-	var pkg string
-	m := make(map[string]interface{})
-	for i, l := 0, v.NumField(); i < l; i++ {
-		if t.Field(i).Type == reflect.TypeOf(Package("")) {
-			pkg = t.Field(i).Tag.Get(tagName)
-			continue
-		}
-		if t.Field(i).Type.Kind() == reflect.Ptr && v.Field(i).IsNil() {
-			m[t.Field(i).Tag.Get(tagName)] = nil
-			continue
-		}
-		m[t.Field(i).Tag.Get(tagName)] = v.Field(i).Interface()
-	}
-
-	o.printString(pkg)
-
-	for k, v := range m {
-		if err := o.WriteObject(k); err != nil {
-			return err
-		}
-		if err := o.WriteObject(v); err != nil {
-			return err
-		}
-	}
-
-	if err := o.buf.WriteByte('z'); err != nil {
-		return err
-	}
-	return nil
+	return o.WriteStruct(reflect.ValueOf(p).Elem().Interface())
 }
 
 // Reader get reader
