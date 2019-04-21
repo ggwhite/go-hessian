@@ -5,8 +5,8 @@ import (
 	"reflect"
 )
 
-// Output stream for hessian requests
-type Output interface {
+// Serializer output stream for hessian requests
+type Serializer interface {
 	// Call Writes a complete method call.
 	Call(string, ...interface{}) error
 
@@ -19,6 +19,6 @@ type Output interface {
 	// Flush clean writer
 	Flush()
 
-	// SetTypeMapping set type mapping
-	SetTypeMapping(string, reflect.Type)
+	// SetTypeMap
+	SetTypeMap(map[string]reflect.Type)
 }

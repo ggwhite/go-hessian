@@ -1,11 +1,10 @@
 package hessian
 
 import (
-	"crypto/tls"
+	"fmt"
 	"log"
 	"net/http"
 	"reflect"
-	"time"
 )
 
 type version int
@@ -16,26 +15,49 @@ const (
 	V2
 )
 
+// ProxyConfig config for NewProxy
+type ProxyConfig struct {
+	Version version
+	URL     string
+	TypeMap map[string]reflect.Type
+	Client  *http.Client
+}
+
+// Validate Proxy Config
+func (c *ProxyConfig) Validate() error {
+	if len(c.URL) == 0 {
+		return fmt.Errorf("Version is required")
+	}
+
+	if c.TypeMap == nil {
+		c.TypeMap = make(map[string]reflect.Type)
+	}
+
+	if c.Client == nil {
+		c.Client = &http.Client{}
+	}
+
+	return nil
+}
+
 // Proxy hessian proxy
 type Proxy struct {
-	v       version
-	url     string
-	client  *http.Client
-	o       Output
-	i       Input
-	typeMap map[string]reflect.Type
+	conf         *ProxyConfig
+	client       *http.Client
+	serializer   Serializer
+	deserializer Deserializer
 }
 
 // Invoke input method name and arguments, it will send request to server, and parse response to interface
 func (c *Proxy) Invoke(m string, args ...interface{}) ([]interface{}, error) {
 
-	c.o.Flush()
+	c.serializer.Flush()
 
-	if err := c.o.Call(m, args...); err != nil {
+	if err := c.serializer.Call(m, args...); err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, c.url, c.o.Reader())
+	req, err := http.NewRequest(http.MethodPost, c.conf.URL, c.serializer.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +75,9 @@ func (c *Proxy) Invoke(m string, args ...interface{}) ([]interface{}, error) {
 		log.Println("status error", resp.StatusCode)
 	}
 
-	c.i.SetReader(resp.Body)
+	c.deserializer.Reset(resp.Body)
 
-	ans, err := c.i.Read()
+	ans, err := c.deserializer.Read()
 	if err != nil {
 		return nil, err
 	}
@@ -63,38 +85,53 @@ func (c *Proxy) Invoke(m string, args ...interface{}) ([]interface{}, error) {
 	return ans, nil
 }
 
-// Input get InputStream from the proxy
-func (c *Proxy) Input() Input {
-	return c.i
+// RegisterType input a type with Package field, register type mapping
+func (c *Proxy) RegisterType(t reflect.Type) error {
+	var tmp reflect.Type
+	var pkg string
+
+	if t.Kind() == reflect.Ptr {
+		tmp = t.Elem()
+	} else {
+		tmp = t
+	}
+
+	for i, l := 0, tmp.NumField(); i < l; i++ {
+		if tmp.Field(i).Type == reflect.TypeOf(Package("")) {
+			pkg = tmp.Field(i).Tag.Get(tagName)
+			break
+		}
+	}
+
+	if len(pkg) == 0 {
+		return fmt.Errorf("input type is without Package field")
+	}
+
+	c.conf.TypeMap[pkg] = t
+
+	c.serializer.SetTypeMap(c.conf.TypeMap)
+	c.deserializer.SetTypeMap(c.conf.TypeMap)
+
+	return nil
 }
 
-// SetTypeMapping set type mapping
-func (c *Proxy) SetTypeMapping(name string, t reflect.Type) {
-	c.o.SetTypeMapping(name, t)
-	c.i.SetTypeMapping(name, t)
-}
+// NewProxy create a proxy of the hessian service
+func NewProxy(c *ProxyConfig) (*Proxy, error) {
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
 
-// NewProxy create hessian proxy
-func NewProxy(v version, url string, timeout time.Duration) *Proxy {
-	switch v {
+	switch c.Version {
 	default:
-		return nil
+		return nil, fmt.Errorf("Please set proxy version is V1 or V2")
 	case V1:
 		return &Proxy{
-			v:   v,
-			url: url,
-			client: &http.Client{
-				Timeout: timeout,
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						InsecureSkipVerify: true,
-					},
-				},
-			},
-			o: NewOutputV1(),
-			i: NewInputV1(),
-		}
+			conf:         c,
+			client:       c.Client,
+			serializer:   NewSerializerV1(),
+			deserializer: NewDeserializerV1(),
+		}, nil
 	case V2:
-		return nil
+		return nil, fmt.Errorf("Hessian V2.0 is unsupported")
 	}
 }

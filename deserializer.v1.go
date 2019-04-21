@@ -8,16 +8,15 @@ import (
 	"reflect"
 )
 
-// InputV1 input stream for hessian 1.0 response
-type InputV1 struct {
+// DeserializerV1 input stream for hessian 1.0 response
+type DeserializerV1 struct {
 	version int
-	peek    int
 	r       io.Reader
 	typeMap map[string]reflect.Type
 }
 
 // ReadAt Read object from given bytes and begin index.
-func (i *InputV1) ReadAt(p []byte, begin int) ([]interface{}, int, error) {
+func (i *DeserializerV1) ReadAt(p []byte, begin int) ([]interface{}, int, error) {
 	var ans []interface{}
 	var j = begin
 	var err error
@@ -43,6 +42,14 @@ func (i *InputV1) ReadAt(p []byte, begin int) ([]interface{}, int, error) {
 			ans = append(ans, false)
 		case 'N':
 			ans = append(ans, nil)
+		case 'B':
+			// B b16 b8 byte-value
+			var val []byte
+			val, j, err = i.ReadBytesAt(p, j+1)
+			if err != nil {
+				return nil, j, err
+			}
+			ans = append(ans, val)
 		case 'S':
 			// S b16 b8 string-value
 			var val string
@@ -119,10 +126,33 @@ func (i *InputV1) ReadAt(p []byte, begin int) ([]interface{}, int, error) {
 	return ans, j, nil
 }
 
+// ReadBytesAt Read bytes from given bytes and begin index.
+//
+// After 'B' chart, find b16 b8 <bytes-value>
+func (i *DeserializerV1) ReadBytesAt(p []byte, begin int) ([]byte, int, error) {
+	var ans []byte
+
+	var idx = begin
+
+	// find bytes length
+	// b16 b8 <bytes-value>
+	l := int(p[idx])<<8 + int(p[idx+1])
+	idx++
+
+	ans = make([]byte, l)
+
+	for k := 0; k < l; k++ {
+		idx++
+		ans[k] = p[idx]
+	}
+
+	return ans, idx, nil
+}
+
 // ReadStringAt Read string from given bytes and begin index.
 //
 // After 'S' chart, find b16 b8 <string-value>
-func (i *InputV1) ReadStringAt(p []byte, begin int) (string, int, error) {
+func (i *DeserializerV1) ReadStringAt(p []byte, begin int) (string, int, error) {
 	var ans []byte
 
 	var idx = begin
@@ -145,7 +175,7 @@ func (i *InputV1) ReadStringAt(p []byte, begin int) (string, int, error) {
 // ReadInt32At Read string from given bytes and begin index.
 //
 // After 'I' chart, find b32 b24 b16 b8
-func (i *InputV1) ReadInt32At(p []byte, begin int) (int32, int, error) {
+func (i *DeserializerV1) ReadInt32At(p []byte, begin int) (int32, int, error) {
 	var ans int32
 	var idx = begin
 
@@ -158,7 +188,7 @@ func (i *InputV1) ReadInt32At(p []byte, begin int) (int32, int, error) {
 // ReadInt64At Read string from given bytes and begin index.
 //
 // After 'L' chart, find b64 b56 b48 b40 b32 b24 b16 b8
-func (i *InputV1) ReadInt64At(p []byte, begin int) (int64, int, error) {
+func (i *DeserializerV1) ReadInt64At(p []byte, begin int) (int64, int, error) {
 	var ans int64
 	var idx = begin
 
@@ -171,7 +201,7 @@ func (i *InputV1) ReadInt64At(p []byte, begin int) (int64, int, error) {
 // ReadFloat64At Read string from given bytes and begin index.
 //
 // After 'D' chart, find b64 b56 b48 b40 b32 b24 b16 b8
-func (i *InputV1) ReadFloat64At(p []byte, begin int) (float64, int, error) {
+func (i *DeserializerV1) ReadFloat64At(p []byte, begin int) (float64, int, error) {
 	var ans uint64
 	var idx = begin
 
@@ -184,7 +214,7 @@ func (i *InputV1) ReadFloat64At(p []byte, begin int) (float64, int, error) {
 // ReadMapAt Read string from given bytes and begin index.
 //
 // After 'Mt' chart, find <key> + <value> ...
-func (i *InputV1) ReadMapAt(p []byte, begin int) (map[interface{}]interface{}, int, error) {
+func (i *DeserializerV1) ReadMapAt(p []byte, begin int) (map[interface{}]interface{}, int, error) {
 	var ans = make(map[interface{}]interface{})
 	var params []interface{}
 	var idx = begin
@@ -207,7 +237,7 @@ func (i *InputV1) ReadMapAt(p []byte, begin int) (map[interface{}]interface{}, i
 // ReadArrayAt Read string from given bytes and begin index.
 //
 // After 'Vt <type> <size>' chart, find <value> + <value> ...
-func (i *InputV1) ReadArrayAt(p []byte, begin int) ([]interface{}, int, error) {
+func (i *DeserializerV1) ReadArrayAt(p []byte, begin int) ([]interface{}, int, error) {
 	// find array type
 	var arrlen int32
 	var arr, args []interface{}
@@ -249,7 +279,7 @@ func (i *InputV1) ReadArrayAt(p []byte, begin int) ([]interface{}, int, error) {
 }
 
 // BuildObject build a struct or ptr(of struct) from given package and data
-func (i *InputV1) BuildObject(pkg string, data map[interface{}]interface{}) (interface{}, error) {
+func (i *DeserializerV1) BuildObject(pkg string, data map[interface{}]interface{}) (interface{}, error) {
 	var tt, t reflect.Type
 	var exist bool
 
@@ -288,7 +318,7 @@ func (i *InputV1) BuildObject(pkg string, data map[interface{}]interface{}) (int
 }
 
 // Read parse input (io.Reader) to return value
-func (i *InputV1) Read() ([]interface{}, error) {
+func (i *DeserializerV1) Read() ([]interface{}, error) {
 	if i.r == nil {
 		return nil, fmt.Errorf("io.Reader is not set yet")
 	}
@@ -302,21 +332,20 @@ func (i *InputV1) Read() ([]interface{}, error) {
 	return ans, err
 }
 
-// SetReader give reader to Input
-func (i *InputV1) SetReader(r io.Reader) {
+// Reset the io.Reader
+func (i *DeserializerV1) Reset(r io.Reader) {
 	i.r = r
 }
 
-// SetTypeMapping set type
-func (i *InputV1) SetTypeMapping(name string, t reflect.Type) {
-	i.typeMap[name] = t
+// SetTypeMap set type map
+func (i *DeserializerV1) SetTypeMap(typeMap map[string]reflect.Type) {
+	i.typeMap = typeMap
 }
 
-// NewInputV1 create InputV1
-func NewInputV1() *InputV1 {
-	return &InputV1{
+// NewDeserializerV1 create DeserializerV1
+func NewDeserializerV1() *DeserializerV1 {
+	return &DeserializerV1{
 		version: 1,
-		peek:    -1,
 		typeMap: make(map[string]reflect.Type),
 	}
 }

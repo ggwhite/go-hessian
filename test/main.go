@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"reflect"
-	"time"
 
 	hessian "github.com/ggwhite/go-hessian"
 )
@@ -18,9 +17,18 @@ type User struct {
 func main() {
 	var addr = "http://localhost:8080/simple"
 
-	proxy := hessian.NewProxy(hessian.V1, addr, 5*time.Second)
-	proxy.SetTypeMapping("lab.ggw.shs.service.User", reflect.TypeOf(&User{}))
+	proxy, err := hessian.NewProxy(&hessian.ProxyConfig{
+		Version: hessian.V1,
+		URL:     addr,
+	})
+	if err != nil {
+		panic(err)
+	}
+	// proxy.SetTypeMapping("lab.ggw.shs.service.User", reflect.TypeOf(&User{}))
+	proxy.RegisterType(reflect.TypeOf(User{}))
 
+	// log.Println(proxy.Invoke("bytes"))
+	log.Println(proxy.Invoke("bytesI", []byte("Str")))
 	// log.Println(proxy.Invoke("str"))
 	// log.Println(proxy.Invoke("strI", "abc"))
 	// log.Println(proxy.Invoke("strI2", "ggwhite", "this is message"))
@@ -59,10 +67,10 @@ func main() {
 	// 	Name:  "ggwhite",
 	// 	Email: "ggw.chang@gmail.com",
 	// }))
-	log.Println(proxy.Invoke("objI", &User{
-		Name:  "ggwhite",
-		Email: "ggw.chang@gmail.com",
-	}))
+	// log.Println(proxy.Invoke("objI", &User{
+	// 	Name:  "ggwhite",
+	// 	Email: "ggw.chang@gmail.com",
+	// }))
 	// log.Println(proxy.Invoke("objI", User{
 	// 	Name:  "ggwhite",
 	// 	Email: "ggw.chang@gmail.com",
@@ -71,8 +79,8 @@ func main() {
 	// 		Email: "ggw.chang@gmail.com",
 	// 	},
 	// }))
-	ans, err := proxy.Invoke("obj")
-	log.Println(ans[0], err)
+	// ans, err := proxy.Invoke("obj")
+	// log.Println(ans[0], err)
 	// log.Println(proxy.Invoke("map"))
 	// log.Println(proxy.Invoke("mapI", map[string]string{
 	// 	"KeyA": "ValueA",

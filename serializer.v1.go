@@ -8,20 +8,81 @@ import (
 	"reflect"
 )
 
-// Package pojo class name, ex: lab.ggw.demo.User
-type Package string
-
 const tagName = "hessian"
 
-// OutputV1 output stream for hessian 1.0 requests
-type OutputV1 struct {
+// SerializerV1 output stream for hessian 1.0 requests
+type SerializerV1 struct {
 	version int
 	buf     *bytes.Buffer
 	typeMap map[string]reflect.Type
 }
 
+// Writes a string value to the stream using UTF-8 encoding.
+// b16 b8 string-value
+func (o *SerializerV1) printString(s string) error {
+	l := len(s)
+	if err := o.buf.WriteByte(byte(l >> 8)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(l)); err != nil {
+		return err
+	}
+	if _, err := o.buf.WriteString(s); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Writes an integer value to the stream.  The integer will be written with the following syntax:
+// b32 b24 b16 b8
+func (o *SerializerV1) printInt32(i int32) error {
+	if err := o.buf.WriteByte(byte(i >> 24)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 16)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 8)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i)); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Writes an long value to the stream.  The long will be written with the following syntax:
+// b64 b56 b48 b40 b32 b24 b16 b8
+func (o *SerializerV1) printInt64(i int64) error {
+	if err := o.buf.WriteByte(byte(i >> 56)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 48)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 40)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 32)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 24)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 16)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i >> 8)); err != nil {
+		return err
+	}
+	if err := o.buf.WriteByte(byte(i)); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Call Writes a complete method call.
-func (o *OutputV1) Call(m string, args ...interface{}) error {
+func (o *SerializerV1) Call(m string, args ...interface{}) error {
 	if err := o.StartCall(); err != nil {
 		return err
 	}
@@ -40,7 +101,7 @@ func (o *OutputV1) Call(m string, args ...interface{}) error {
 }
 
 // StartCall Starts the method call.
-func (o *OutputV1) StartCall() error {
+func (o *SerializerV1) StartCall() error {
 	if err := o.buf.WriteByte('c'); err != nil {
 		return err
 	}
@@ -54,7 +115,7 @@ func (o *OutputV1) StartCall() error {
 }
 
 // CompleteCall Completes
-func (o *OutputV1) CompleteCall() error {
+func (o *SerializerV1) CompleteCall() error {
 	if err := o.buf.WriteByte('z'); err != nil {
 		return err
 	}
@@ -64,25 +125,16 @@ func (o *OutputV1) CompleteCall() error {
 // WriteMethod Writes the method tag.
 //
 // m b16 b8 method-name
-func (o *OutputV1) WriteMethod(m string) error {
-	l := len(m)
+func (o *SerializerV1) WriteMethod(m string) error {
 	if err := o.buf.WriteByte('m'); err != nil {
 		return err
 	}
-	if err := o.buf.WriteByte(byte(l >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(l)); err != nil {
-		return err
-	}
-	if _, err := o.buf.WriteString(m); err != nil {
-		return err
-	}
+	o.printString(m)
 	return nil
 }
 
 // WriteObject Writes any object to the output stream.
-func (o *OutputV1) WriteObject(arg interface{}) error {
+func (o *SerializerV1) WriteObject(arg interface{}) error {
 	t := reflect.TypeOf(arg)
 	if arg == nil {
 		if err := o.WriteNull(); err != nil {
@@ -154,10 +206,19 @@ func (o *OutputV1) WriteObject(arg interface{}) error {
 }
 
 // WriteNull Writes a null value to the stream.
-func (o *OutputV1) WriteNull() error {
+func (o *SerializerV1) WriteNull() error {
 	if err := o.buf.WriteByte('N'); err != nil {
 		return err
 	}
+	return nil
+}
+
+// WriteBytes Writes a bytes value to the stream
+func (o *SerializerV1) WriteBytes(b []byte) error {
+	if err := o.buf.WriteByte('B'); err != nil {
+		return err
+	}
+	o.printString(string(b))
 	return nil
 }
 
@@ -166,27 +227,18 @@ func (o *OutputV1) WriteNull() error {
 // The string will be written with the following syntax:
 //
 // S b16 b8 string-value
-func (o *OutputV1) WriteString(s string) error {
-	l := len(s)
+func (o *SerializerV1) WriteString(s string) error {
 	if err := o.buf.WriteByte('S'); err != nil {
 		return err
 	}
-	if err := o.buf.WriteByte(byte(l >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(l)); err != nil {
-		return err
-	}
-	if _, err := o.buf.WriteString(s); err != nil {
-		return err
-	}
+	o.printString(s)
 	return nil
 }
 
 // WriteBool Writes a boolean value to the stream.  The boolean will be written with the following syntax:
 //
 // T or F
-func (o *OutputV1) WriteBool(b bool) error {
+func (o *SerializerV1) WriteBool(b bool) error {
 	if b {
 		if err := o.buf.WriteByte('T'); err != nil {
 			return err
@@ -203,63 +255,29 @@ func (o *OutputV1) WriteBool(b bool) error {
 // WriteInt Writes an integer value to the stream.  The integer will be written with the following syntax:
 //
 // I b32 b24 b16 b8
-func (o *OutputV1) WriteInt(i int32) error {
+func (o *SerializerV1) WriteInt(i int32) error {
 	if err := o.buf.WriteByte('I'); err != nil {
 		return err
 	}
-	if err := o.buf.WriteByte(byte(i >> 24)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 16)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i)); err != nil {
-		return err
-	}
+	o.printInt32(i)
 	return nil
 }
 
 // WriteLong Writes an long value to the stream.  The long will be written with the following syntax:
 //
 // L b64 b56 b48 b40 b32 b24 b16 b8
-func (o *OutputV1) WriteLong(i int64) error {
+func (o *SerializerV1) WriteLong(i int64) error {
 	if err := o.buf.WriteByte('L'); err != nil {
 		return err
 	}
-	if err := o.buf.WriteByte(byte(i >> 56)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 48)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 40)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 32)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 24)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 16)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(i)); err != nil {
-		return err
-	}
+	o.printInt64(i)
 	return nil
 }
 
 // WriteDouble Writes an double value to the stream.  The double will be written with the following syntax:
 //
 // D b64 b56 b48 b40 b32 b24 b16 b8
-func (o *OutputV1) WriteDouble(i float64) error {
+func (o *SerializerV1) WriteDouble(i float64) error {
 	n := math.Float64bits(i)
 
 	if err := o.buf.WriteByte('D'); err != nil {
@@ -295,7 +313,7 @@ func (o *OutputV1) WriteDouble(i float64) error {
 // WriteMap Write an map value to the stream. The map will be written with the following syntax:
 //
 // Mt b16 b8 (<key> <value>)z
-func (o *OutputV1) WriteMap(m interface{}) error {
+func (o *SerializerV1) WriteMap(m interface{}) error {
 	t := reflect.TypeOf(m)
 	if t.Kind() != reflect.Map {
 		return fmt.Errorf("WriteMap input is not a map")
@@ -333,11 +351,14 @@ func (o *OutputV1) WriteMap(m interface{}) error {
 // WriteArray Write an map value to the stream. The map will be written with the following syntax:
 //
 // Vt b16 b8 <array-type> l b32 b24 b16 b8 <object> ... ... z
-func (o *OutputV1) WriteArray(arr interface{}) error {
+func (o *SerializerV1) WriteArray(arr interface{}) error {
 	// check input
 	t := reflect.TypeOf(arr)
 	if t.Kind() != reflect.Array && t.Kind() != reflect.Slice {
 		return fmt.Errorf("WriteArray input is not a array or slice")
+	}
+	if t.Elem().Kind() == reflect.Uint8 {
+		return o.WriteBytes(arr.([]byte))
 	}
 
 	// write begin
@@ -374,34 +395,12 @@ func (o *OutputV1) WriteArray(arr interface{}) error {
 	case reflect.Float64:
 		arrtype = "[double"
 	}
-
-	typelen := len(arrtype)
-
-	if err := o.buf.WriteByte(byte(typelen >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(typelen)); err != nil {
-		return err
-	}
-	if _, err := o.buf.WriteString(arrtype); err != nil {
-		return err
-	}
+	o.printString(arrtype)
 
 	if err := o.buf.WriteByte('l'); err != nil {
 		return err
 	}
-	if err := o.buf.WriteByte(byte(v.Len() >> 24)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(v.Len() >> 16)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(v.Len() >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(v.Len())); err != nil {
-		return err
-	}
+	o.printInt32(int32(v.Len()))
 
 	for i := 0; i < v.Len(); i++ {
 		if err := o.WriteObject(v.Index(i).Interface()); err != nil {
@@ -417,7 +416,7 @@ func (o *OutputV1) WriteArray(arr interface{}) error {
 }
 
 // WriteStruct Writes an object value to the stream.
-func (o *OutputV1) WriteStruct(s interface{}) error {
+func (o *SerializerV1) WriteStruct(s interface{}) error {
 	t := reflect.TypeOf(s)
 	if t.Kind() != reflect.Struct {
 		return fmt.Errorf("WriteStruct input is not a struct")
@@ -445,16 +444,7 @@ func (o *OutputV1) WriteStruct(s interface{}) error {
 		m[t.Field(i).Tag.Get(tagName)] = v.Field(i).Interface()
 	}
 
-	l := len(pkg)
-	if err := o.buf.WriteByte(byte(l >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(l)); err != nil {
-		return err
-	}
-	if _, err := o.buf.WriteString(pkg); err != nil {
-		return err
-	}
+	o.printString(pkg)
 
 	for k, v := range m {
 		if err := o.WriteObject(k); err != nil {
@@ -472,7 +462,7 @@ func (o *OutputV1) WriteStruct(s interface{}) error {
 }
 
 // WritePtr Writes an object value to the stream.
-func (o *OutputV1) WritePtr(p interface{}) error {
+func (o *SerializerV1) WritePtr(p interface{}) error {
 	t := reflect.TypeOf(p)
 	if t.Kind() != reflect.Ptr {
 		return fmt.Errorf("WritePtr input is not a pointer")
@@ -501,16 +491,7 @@ func (o *OutputV1) WritePtr(p interface{}) error {
 		m[t.Field(i).Tag.Get(tagName)] = v.Field(i).Interface()
 	}
 
-	l := len(pkg)
-	if err := o.buf.WriteByte(byte(l >> 8)); err != nil {
-		return err
-	}
-	if err := o.buf.WriteByte(byte(l)); err != nil {
-		return err
-	}
-	if _, err := o.buf.WriteString(pkg); err != nil {
-		return err
-	}
+	o.printString(pkg)
 
 	for k, v := range m {
 		if err := o.WriteObject(k); err != nil {
@@ -528,28 +509,28 @@ func (o *OutputV1) WritePtr(p interface{}) error {
 }
 
 // Reader get reader
-func (o *OutputV1) Reader() io.Reader {
+func (o *SerializerV1) Reader() io.Reader {
 	return o.buf
 }
 
 // Writer get writer
-func (o *OutputV1) Writer() io.Writer {
+func (o *SerializerV1) Writer() io.Writer {
 	return o.buf
 }
 
 // Flush clean writer
-func (o *OutputV1) Flush() {
+func (o *SerializerV1) Flush() {
 	o.buf.Reset()
 }
 
-// SetTypeMapping set type
-func (o *OutputV1) SetTypeMapping(name string, t reflect.Type) {
-	o.typeMap[name] = t
+// SetTypeMap set type map
+func (o *SerializerV1) SetTypeMap(typeMap map[string]reflect.Type) {
+	o.typeMap = typeMap
 }
 
-// NewOutputV1 create OutputV1
-func NewOutputV1() *OutputV1 {
-	return &OutputV1{
+// NewSerializerV1 create SerializerV1
+func NewSerializerV1() *SerializerV1 {
+	return &SerializerV1{
 		buf:     bytes.NewBuffer(nil),
 		version: 1,
 		typeMap: make(map[string]reflect.Type),
