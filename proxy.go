@@ -26,7 +26,7 @@ type ProxyConfig struct {
 // Validate Proxy Config
 func (c *ProxyConfig) Validate() error {
 	if len(c.URL) == 0 {
-		return fmt.Errorf("Version is required")
+		return fmt.Errorf("Proxy Config: URL is required")
 	}
 
 	if c.TypeMap == nil {

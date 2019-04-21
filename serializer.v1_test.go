@@ -566,8 +566,6 @@ func TestSerializerV1_WriteObject(t *testing.T) {
 			args: args{
 				arg: map[interface{}]interface{}{
 					"KeyA": "ValueA",
-					2:      "ValueB",
-					"KeyC": "ValueC",
 				},
 			},
 			wantErr: false,
@@ -575,10 +573,6 @@ func TestSerializerV1_WriteObject(t *testing.T) {
 				'M', 't', 0x00, 0x00,
 				'S', 0x00, 0x04, 'K', 'e', 'y', 'A',
 				'S', 0x00, 0x06, 'V', 'a', 'l', 'u', 'e', 'A',
-				'I', 0x00, 0x00, 0x00, 0x02,
-				'S', 0x00, 0x06, 'V', 'a', 'l', 'u', 'e', 'B',
-				'S', 0x00, 0x04, 'K', 'e', 'y', 'C',
-				'S', 0x00, 0x06, 'V', 'a', 'l', 'u', 'e', 'C',
 				'z',
 			},
 		},
