@@ -29,7 +29,13 @@ import (
 
 func main() {
     var addr = "http://localhost:8080/simple"
-    proxy := hessian.NewProxy(hessian.V1, addr, 5*time.Second)
+    proxy, err := hessian.NewProxy(&hessian.ProxyConfig{
+        Version: hessian.V1,
+        URL:     addr,
+    })
+    if err != nil {
+        panic(err)
+    }
     
     args, err := proxy.Invoke("str")
     log.Println(args, err)
@@ -57,7 +63,13 @@ import (
 
 func main() {
     var addr = "http://localhost:8080/simple"
-    proxy := hessian.NewProxy(hessian.V1, addr, 5*time.Second)
+    proxy, err := hessian.NewProxy(&hessian.ProxyConfig{
+        Version: hessian.V1,
+        URL:     addr,
+    })
+    if err != nil {
+        panic(err)
+    }
     
     log.Println(proxy.Invoke("strI2", "ggwhite", "this is message"))
     log.Println(args, err)
@@ -90,8 +102,14 @@ type User struct {
 
 func main() {
     var addr = "http://localhost:8080/simple"
-    proxy := hessian.NewProxy(hessian.V1, addr, 5*time.Second)
-    proxy.SetTypeMapping("lab.ggw.shs.service.User", reflect.TypeOf(&User{})) // or User{}
+    proxy, err := hessian.NewProxy(&hessian.ProxyConfig{
+        Version: hessian.V1,
+        URL:     addr,
+    })
+    if err != nil {
+        panic(err)
+    }
+    proxy.RegisterType(reflect.TypeOf(User{}))
     
     ans, err := proxy.Invoke("obj")
     log.Println(ans[0], err)
@@ -109,7 +127,6 @@ Result:
 2019/04/18 16:46:13 [ggwhite] <nil>
 ```
 
-> Give `hessian.Package` to your struct and add tag `hessian` to let encoder know what package(ClassName) of your POJO,
-> set `TypeMapping` to proxy let decoder know what type that you want convert to.
+> Give `hessian.Package` to your struct and add tag `hessian` to let proxy know what package(ClassName) of your POJO.
 > 
 > Mapping type can be a type of struct or a pointer of the struct.
