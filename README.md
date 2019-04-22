@@ -145,7 +145,7 @@ Result:
 |int     |Y         |Y           |
 |long    |Y         |Y           |
 |double  |Y         |Y           |
-|date    |N         |N           |
+|date    |Y         |Y           |
 |string  |Y         |Y           |
 |xml     |N         |N           |
 |binary  |Y         |Y           |

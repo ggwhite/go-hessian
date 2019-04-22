@@ -2,8 +2,8 @@ package main
 
 import (
 	"log"
-	"math"
 	"reflect"
+	"time"
 
 	hessian "github.com/ggwhite/go-hessian"
 )
@@ -28,6 +28,8 @@ func main() {
 	// proxy.SetTypeMapping("lab.ggw.shs.service.User", reflect.TypeOf(&User{}))
 	proxy.RegisterType(reflect.TypeOf(User{}))
 
+	log.Println(proxy.Invoke("date"))
+	log.Println(proxy.Invoke("dateI", time.Now()))
 	// log.Println(proxy.Invoke("bytes"))
 	// log.Println(proxy.Invoke("bytesI", []byte("Str")))
 	// log.Println(proxy.Invoke("str"))
@@ -55,9 +57,9 @@ func main() {
 	// log.Println(math.MinInt32)
 	// log.Println(proxy.Invoke("integerI", int64(math.MaxInt64)))
 	// log.Println(proxy.Invoke("longX"))
-	log.Println(proxy.Invoke("longI", int64(math.MaxInt64)))
+	// log.Println(proxy.Invoke("longI", int64(math.MaxInt64)))
 	// log.Println(math.MaxInt64)
-	log.Println(proxy.Invoke("longI", int64(math.MinInt64)))
+	// log.Println(proxy.Invoke("longI", int64(math.MinInt64)))
 	// log.Println(math.MinInt64)
 	// log.Println(proxy.Invoke("doubleX"))
 	// log.Println(proxy.Invoke("doubleI", float32(math.MaxFloat32)))

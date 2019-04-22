@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"time"
 )
 
 const tagName = "hessian"
@@ -185,6 +186,12 @@ func (o *SerializerV1) WriteObject(arg interface{}) error {
 			return err
 		}
 	case reflect.Struct:
+		if t == reflect.TypeOf(time.Time{}) {
+			if err := o.WriteDate(arg.(time.Time)); err != nil {
+				return err
+			}
+			return nil
+		}
 		if err := o.WriteStruct(arg); err != nil {
 			return err
 		}
@@ -307,6 +314,19 @@ func (o *SerializerV1) WriteDouble(i float64) error {
 	if err := o.buf.WriteByte(byte(n)); err != nil {
 		return err
 	}
+	return nil
+}
+
+// WriteDate Writes an date value to the stream.  The long will be written with the following syntax:
+//
+// d b64 b56 b48 b40 b32 b24 b16 b8
+func (o *SerializerV1) WriteDate(t time.Time) error {
+	if err := o.buf.WriteByte('d'); err != nil {
+		return err
+	}
+
+	// write milliseconds
+	o.printInt64(t.UnixNano() / 1e6)
 	return nil
 }
 

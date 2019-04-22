@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math"
 	"reflect"
+	"time"
 )
 
 // DeserializerV1 input stream for hessian 1.0 response
@@ -78,6 +79,14 @@ func (i *DeserializerV1) ReadAt(p []byte, begin int) ([]interface{}, int, error)
 			// D b64 b56 b48 b40 b32 b24 b16 b8
 			var val float64
 			val, j, err = i.ReadFloat64At(p, j+1)
+			if err != nil {
+				return nil, j, err
+			}
+			ans = append(ans, val)
+		case 'd':
+			// d b64 b56 b48 b40 b32 b24 b16 b8
+			var val time.Time
+			val, j, err = i.ReadDateAt(p, j+1)
 			if err != nil {
 				return nil, j, err
 			}
@@ -185,7 +194,7 @@ func (i *DeserializerV1) ReadInt32At(p []byte, begin int) (int32, int, error) {
 	return ans, idx + 3, nil
 }
 
-// ReadInt64At Read string from given bytes and begin index.
+// ReadInt64At Read int64 from given bytes and begin index.
 //
 // After 'L' chart, find b64 b56 b48 b40 b32 b24 b16 b8
 func (i *DeserializerV1) ReadInt64At(p []byte, begin int) (int64, int, error) {
@@ -198,7 +207,21 @@ func (i *DeserializerV1) ReadInt64At(p []byte, begin int) (int64, int, error) {
 	return ans, idx + 7, nil
 }
 
-// ReadFloat64At Read string from given bytes and begin index.
+// ReadDateAt Read date from given bytes and begin index.
+//
+// After 'd' chart, find b64 b56 b48 b40 b32 b24 b16 b8
+func (i *DeserializerV1) ReadDateAt(p []byte, begin int) (time.Time, int, error) {
+	var idx = begin
+
+	// b64 b56 b48 b40 b32 b24 b16 b8
+	ms := int64(p[idx])<<56 + int64(p[idx+1])<<48 + int64(p[idx+2])<<40 + int64(p[idx+3])<<32 + int64(p[idx+4])<<24 + int64(p[idx+5])<<16 + int64(p[idx+6])<<8 + int64(p[idx+7])
+	s := ms / 1e3
+	ns := ms % 1e3 * 1e6
+
+	return time.Unix(s, ns), idx + 7, nil
+}
+
+// ReadFloat64At Read float64 from given bytes and begin index.
 //
 // After 'D' chart, find b64 b56 b48 b40 b32 b24 b16 b8
 func (i *DeserializerV1) ReadFloat64At(p []byte, begin int) (float64, int, error) {
