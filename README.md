@@ -137,7 +137,6 @@ Result:
 
 * Hessian v1.0 specification.
 
-
 |Type    |Serialize |Deserialize |
 |:------:|:--------:|:----------:|
 |null    |Y         |Y           |
@@ -152,4 +151,3 @@ Result:
 |list    |Y         |Y           |
 |ref     |N         |N           |
 |remote  |N         |N           |
-|Boolean |Y         |Y           |
