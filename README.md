@@ -136,6 +136,7 @@ Result:
 ## Supported
 
 * Hessian v1.0 specification.
+  > Ref: [hessian 1.0 spec](http://hessian.caucho.com/doc/hessian-1.0-spec.xtp)
 
 |Type    |Serialize |Deserialize |
 |:------:|:--------:|:----------:|
