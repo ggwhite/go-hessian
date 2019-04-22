@@ -138,17 +138,18 @@ Result:
 * Hessian v1.0 specification.
   > Ref: [hessian 1.0 spec](http://hessian.caucho.com/doc/hessian-1.0-spec.xtp)
 
-|Type    |Serialize |Deserialize |
-|:------:|:--------:|:----------:|
-|null    |Y         |Y           |
-|boolean |Y         |Y           |
-|int     |Y         |Y           |
-|long    |Y         |Y           |
-|double  |Y         |Y           |
-|date    |Y         |Y           |
-|string  |Y         |Y           |
-|xml     |N         |N           |
-|binary  |Y         |Y           |
-|list    |Y         |Y           |
-|ref     |N         |N           |
-|remote  |N         |N           |
+|Type    |Serialize |Deserialize |Syntax                                      |
+|:------:|:--------:|:----------:|--------------------------------------------|
+|null    |Y         |Y           |N                                           |
+|boolean |Y         |Y           |T/F                                         |
+|int     |Y         |Y           |I b32 b24 b16 b8                            |
+|long    |Y         |Y           |L b64 b56 b48 b40 b32 b24 b16 b8            |
+|double  |Y         |Y           |D b64 b56 b48 b40 b32 b24 b16 b8            |
+|date    |Y         |Y           |d b64 b56 b48 b40 b32 b24 b16 b8            |
+|string  |Y         |Y           |S b16 b8 utf-8-data                         |
+|xml     |N         |N           |                                            |
+|binary  |Y         |Y           |B b16 b8 binary-data                        |
+|list    |Y         |Y           |V type? length? object* z                   |
+|map     |Y         |Y           |M t b16 b8 type-string (object, object)* z  |
+|ref     |N         |N           |                                            |
+|remote  |N         |N           |                                            |
