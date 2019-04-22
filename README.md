@@ -131,3 +131,25 @@ Result:
 > Give `hessian.Package` to your struct and add tag `hessian` to let proxy know what package(ClassName) of your POJO.
 > 
 > Mapping type can be a type of struct or a pointer of the struct.
+
+
+## Supported
+
+* Hessian v1.0 specification.
+
+
+|Type    |Serialize |Deserialize |
+|:------:|:--------:|:----------:|
+|null    |Y         |Y           |
+|boolean |Y         |Y           |
+|int     |Y         |Y           |
+|long    |Y         |Y           |
+|double  |Y         |Y           |
+|date    |N         |N           |
+|string  |Y         |Y           |
+|xml     |N         |N           |
+|binary  |Y         |Y           |
+|list    |Y         |Y           |
+|ref     |N         |N           |
+|remote  |N         |N           |
+|Boolean |Y         |Y           |
